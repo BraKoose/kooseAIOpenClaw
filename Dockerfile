@@ -1,3 +1,7 @@
+# =============================================================================
+# Koose AI — Dockerfile
+# Zero-prompt deployment. All config via environment variables.
+# =============================================================================
 FROM node:22-bookworm@sha256:cd7bcd2e7a1e6f72052feb023c7f6b722205d3fcab7bbcbd2d1bfdab10b1e935
 
 # Install Bun (required for build scripts)
@@ -9,14 +13,7 @@ RUN corepack enable
 WORKDIR /app
 RUN chown node:node /app
 
-ARG OPENCLAW_DOCKER_APT_PACKAGES=""
-RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
-      apt-get update && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $OPENCLAW_DOCKER_APT_PACKAGES && \
-      apt-get clean && \
-      rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
-    fi
-
+# -- Install dependencies (cached layer) --
 COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY --chown=node:node ui/package.json ./ui/package.json
 COPY --chown=node:node patches ./patches
@@ -25,41 +22,32 @@ COPY --chown=node:node scripts ./scripts
 USER node
 RUN pnpm install --frozen-lockfile
 
-# Optionally install Chromium and Xvfb for browser automation.
-# Build with: docker build --build-arg OPENCLAW_INSTALL_BROWSER=1 ...
-# Adds ~300MB but eliminates the 60-90s Playwright install on every container start.
-# Must run after pnpm install so playwright-core is available in node_modules.
-USER root
-ARG OPENCLAW_INSTALL_BROWSER=""
-RUN if [ -n "$OPENCLAW_INSTALL_BROWSER" ]; then \
-      apt-get update && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb && \
-      mkdir -p /home/node/.cache/ms-playwright && \
-      PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright \
-      node /app/node_modules/playwright-core/cli.js install --with-deps chromium && \
-      chown -R node:node /home/node/.cache/ms-playwright && \
-      apt-get clean && \
-      rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
-    fi
-
+# -- Copy source and build --
 USER node
 COPY --chown=node:node . .
-RUN pnpm build
-# Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
 ENV OPENCLAW_PREFER_PNPM=1
-RUN pnpm ui:build
+RUN pnpm build && pnpm ui:build
+
+# -- Koose personality is baked into the image --
+# koose/SOUL.md is copied to the workspace at startup by koose/start.sh
 
 ENV NODE_ENV=production
 
-# Security hardening: Run as non-root user
-# The node:22-bookworm image includes a 'node' user (uid 1000)
-# This reduces the attack surface by preventing container escape via root privileges
+# Security: run as non-root
 USER node
 
-# Start gateway server with default config.
-# Binds to loopback (127.0.0.1) by default for security.
+# -- Startup --
+# koose/start.sh handles:
+#   1. Validates ANTHROPIC_API_KEY from env
+#   2. Runs non-interactive onboarding (no prompts)
+#   3. Copies SOUL.md personality into workspace
+#   4. Starts the gateway with WebChat on $PORT
 #
-# For container platforms requiring external health checks:
-#   1. Set OPENCLAW_GATEWAY_TOKEN or OPENCLAW_GATEWAY_PASSWORD env var
-#   2. Override CMD: ["node","openclaw.mjs","gateway","--allow-unconfigured","--bind","lan"]
-CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
+# Required env vars (set via fly secrets or docker run -e):
+#   ANTHROPIC_API_KEY  — your Anthropic API key
+#
+# Optional env vars:
+#   PORT               — server port (default: 3000)
+#   GATEWAY_BIND       — bind mode (default: lan)
+#   OPENCLAW_STATE_DIR — state directory (default: ~/.openclaw)
+CMD ["bash", "koose/start.sh"]

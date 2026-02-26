@@ -1,26 +1,30 @@
-# OpenClaw Fly.io deployment configuration
-# See https://fly.io/docs/reference/configuration/
+# =============================================================================
+# Koose AI — Fly.io deployment
+# =============================================================================
 
-app = "openclaw"
-primary_region = "iad" # change to your closest region
+app = "koose-ai"
+primary_region = "lhr" # London — closest to MEST Africa
 
 [build]
 dockerfile = "Dockerfile"
 
 [env]
 NODE_ENV = "production"
-# Fly uses x86, but keep this for consistency
 OPENCLAW_PREFER_PNPM = "1"
 OPENCLAW_STATE_DIR = "/data"
-NODE_OPTIONS = "--max-old-space-size=1536"
+PORT = "3000"
+GATEWAY_BIND = "lan"
+
+# ANTHROPIC_API_KEY is set via: flyctl secrets set ANTHROPIC_API_KEY=sk-ant-...
+# Never put secrets in this file.
 
 [processes]
-app = "node dist/index.js gateway --allow-unconfigured --port 3000 --bind lan"
+app = "bash koose/start.sh"
 
 [http_service]
 internal_port = 3000
 force_https = true
-auto_stop_machines = false # Keep running for persistent connections
+auto_stop_machines = false
 auto_start_machines = true
 min_machines_running = 1
 processes = ["app"]
@@ -30,5 +34,5 @@ size = "shared-cpu-2x"
 memory = "2048mb"
 
 [mounts]
-source = "openclaw_data"
+source = "koose_data"
 destination = "/data"

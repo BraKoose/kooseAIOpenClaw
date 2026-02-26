@@ -8,109 +8,70 @@
 
 ## What is Koose?
 
-Koose is a personal AI assistant built on top of [OpenClaw](https://github.com/openclaw/openclaw), an open-source AI agent framework. Koose can:
+Koose is a personal AI assistant that can:
 
 - **Summarize articles** from a pasted URL link
 - **Summarize PDF documents** uploaded directly
-- **Chat with personality** -- Koose has its own voice and character, named after its creator
+- **Chat with personality** -- Koose has its own voice and character
 
-## Why OpenClaw instead of building from scratch?
+Built on [OpenClaw](https://github.com/openclaw/openclaw) -- an open-source AI agent framework that handles LLM integration, PDF parsing, session management, error handling, and logging out of the box. This lets us focus on Koose's personality and capabilities instead of reinventing infrastructure.
 
-Building a full AI agent from zero means writing your own LLM integration, message routing, session management, media handling (PDFs, images, audio), error recovery, and deployment plumbing. That is months of work.
+## Why OpenClaw?
 
-**OpenClaw gives us all of that out of the box:**
+| What we need       | Without OpenClaw        | With OpenClaw                |
+| ------------------ | ----------------------- | ---------------------------- |
+| PDF summarization  | Build custom PDF parser | Built-in media pipeline      |
+| Link summarization | Write web scraper + LLM | Native URL fetching          |
+| Personality        | Build prompt system     | Drop a `SOUL.md` file        |
+| Error handling     | Write retry/fallback    | Production-grade, built in   |
+| Logging            | Build logging framework | Structured logs, `--verbose` |
+| Web UI             | Build from scratch      | WebChat included             |
+| Deployment         | Custom Docker + scripts | One startup script           |
 
-- **Built-in media pipeline** -- handles PDF uploads, images, audio, and video natively. No need to write custom PDF parsing or file-upload logic.
-- **Multi-channel support** -- Koose works on WhatsApp, Telegram, Slack, Discord, and a WebChat UI. One codebase, many surfaces.
-- **Session management** -- tracks conversation context, so Koose remembers what you asked earlier in the same chat.
-- **Agent personality via prompt files** -- drop a `SOUL.md` file and Koose has a personality. No code changes needed.
-- **Production-grade error handling and logging** -- retries, graceful failures, and structured logs are built in.
-- **Extensible with skills** -- add new abilities (like "summarize-link" or "summarize-pdf") as skill files without touching core code.
+## Use cases at MEST
 
-In short: OpenClaw handles the hard infrastructure so we focus on what Koose should _do_ and how it should _talk_.
-
-## Use cases at MEST (and beyond)
-
-Koose is not just an assignment -- it is a tool EITs and staff can use daily:
-
-- **Research assistant** -- paste any article link and get a concise summary in seconds. Useful during market research, competitor analysis, or reading long reports.
-- **PDF digest** -- upload a lecture PDF, business plan, or case study and get the key points without reading 30 pages.
-- **Study buddy** -- ask Koose to explain concepts, quiz you, or break down complex readings.
-- **Meeting prep** -- summarize agendas, reports, or background reading before a meeting.
-- **WhatsApp-native** -- works right inside WhatsApp, the app everyone at MEST already uses. No extra app to install.
-- **Team knowledge sharing** -- add Koose to a group chat and let the whole team ask questions about shared documents.
-- **Post-assignment** -- Koose keeps running after the assignment. Add new skills, connect new channels, or deploy it for your startup.
+- **Research** -- paste article links, get summaries in seconds
+- **PDF digest** -- upload lecture PDFs, business plans, case studies
+- **Study buddy** -- explain concepts, break down readings
+- **Meeting prep** -- summarize agendas and background docs
+- **Post-assignment** -- keep running, add skills, connect WhatsApp
 
 ---
 
-## Prerequisites
+## Quick start (3 steps)
 
-- **Node.js >= 22** -- [Download here](https://nodejs.org/)
-- **pnpm** -- install with `npm install -g pnpm`
-- **An Anthropic API key** -- [Get one here](https://console.anthropic.com/) (or use OpenAI/Google keys instead)
-- **Git** -- to clone this repo
-- **fly.io CLI** (for deployment) -- [Install flyctl](https://fly.io/docs/flyctl/install/)
-
-## Installation (from this repo)
-
-This runs Koose directly from the cloned source code -- no `npm install -g` needed.
-
-### 1. Clone the repository
+### 1. Clone and build
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/openclaw.git koose-ai
 cd koose-ai
-```
-
-### 2. Install dependencies
-
-```bash
 pnpm install
+pnpm build && pnpm ui:build
 ```
 
-### 3. Build the project
+### 2. Set your API key
 
 ```bash
-pnpm ui:build
-pnpm build
+cp koose/.env.example .env
 ```
 
-### 4. Run the onboarding wizard
+Edit `.env` and paste your Anthropic API key:
 
-This sets up your API key, model, and workspace:
+```
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+```
+
+Get a key at https://console.anthropic.com if you don't have one.
+
+### 3. Start Koose
 
 ```bash
-pnpm openclaw onboard
+source .env && bash koose/start.sh
 ```
 
-The wizard will ask you to:
+That's it. Open `http://localhost:3000` in your browser. Koose is ready.
 
-1. Choose a model provider (pick **Anthropic** and paste your API key)
-2. Set up the workspace directory
-3. Optionally connect a channel (WhatsApp, Telegram, etc.)
-
-### 5. Give Koose a personality
-
-Edit (or create) the file `~/.openclaw/workspace/SOUL.md`:
-
-```markdown
-You are Koose, a friendly and sharp AI assistant created by Koose, an EIT at MEST Africa.
-You speak clearly, with a warm and slightly witty tone.
-You love helping people understand complex things simply.
-When summarizing, you are concise but never leave out the important parts.
-```
-
-### 6. Start the gateway
-
-```bash
-pnpm openclaw gateway run --port 18789 --verbose
-```
-
-Koose is now running locally on `http://localhost:18789`.
-
-### 7. Open the WebChat
-
-Visit `http://localhost:18789` in your browser to chat with Koose via the built-in WebChat UI.
+No wizard. No interactive prompts. The startup script reads your API key from `.env`, sets up the config, copies Koose's personality, and starts the web UI automatically.
 
 ---
 
@@ -118,40 +79,28 @@ Visit `http://localhost:18789` in your browser to chat with Koose via the built-
 
 ### Test 1: Summarize an article link
 
-In the WebChat (or WhatsApp if connected), send:
+In the WebChat, send:
 
 ```
 Summarize this article: https://techcrunch.com/2024/01/15/example-article
 ```
 
-Koose will fetch and summarize the article content.
+Koose will fetch the article and return a structured summary.
 
 ### Test 2: Summarize a PDF
 
-1. Open the WebChat at `http://localhost:18789`
+1. Open `http://localhost:3000`
 2. Click the attachment/upload button
-3. Upload any PDF file (e.g. a lecture note, business plan, or research paper)
-4. Send a message like: `Summarize this PDF`
+3. Upload any PDF (lecture note, business plan, research paper)
+4. Send: `Summarize this PDF`
 
-Koose will read the PDF and return a summary.
+Koose reads the PDF and returns the key points.
 
 ### Test 3: Personality check
 
-Send:
+Send: `Who are you?`
 
-```
-Who are you?
-```
-
-Koose should respond with its personality as defined in `SOUL.md`.
-
-### Test via WhatsApp (optional)
-
-If you connected WhatsApp during onboarding:
-
-1. Send a message to the linked WhatsApp number
-2. Paste a link or forward a PDF
-3. Ask Koose to summarize it
+Koose responds with its personality as defined in `koose/SOUL.md`.
 
 ---
 
@@ -159,151 +108,129 @@ If you connected WhatsApp during onboarding:
 
 ```
 koose-ai/
-  src/               # Core source code (TypeScript)
-    cli/             # CLI commands
-    commands/        # Command handlers
-    infra/           # Infrastructure (logging, errors, config)
-    media/           # Media pipeline (PDF, images, audio)
-  dist/              # Built output (after pnpm build)
-  docs/              # Documentation
-  ~/.openclaw/
-    openclaw.json    # Configuration (model, channels, auth)
-    workspace/
-      SOUL.md        # Koose personality prompt
-      AGENTS.md      # Agent behavior instructions
-      skills/        # Custom skills directory
+  koose/                 # Koose-specific files
+    SOUL.md              # Koose personality (baked in)
+    start.sh             # Zero-prompt startup script
+    .env.example         # Environment variables template
+  src/                   # OpenClaw core source (TypeScript)
+    cli/                 # CLI commands
+    commands/            # Command handlers
+    infra/               # Logging, errors, config
+    media/               # PDF, images, audio pipeline
+  Dockerfile             # Production Docker image
+  fly.toml               # Fly.io deployment config
+  .env                   # Your local env vars (gitignored)
 ```
 
-## Configuration
+## How it works
 
-The main config file is `~/.openclaw/openclaw.json`. Key settings:
-
-```json5
-{
-  // AI model
-  agents: {
-    defaults: {
-      model: { primary: "anthropic/claude-sonnet-4-6" },
-    },
-  },
-  // Gateway (the server)
-  gateway: {
-    port: 18789,
-    mode: "local",
-  },
-  // Channels (optional -- connect WhatsApp, Telegram, etc.)
-  channels: {
-    whatsapp: { enabled: true },
-  },
-}
 ```
+.env (ANTHROPIC_API_KEY)
+  |
+  v
+koose/start.sh
+  |-- validates env vars
+  |-- runs non-interactive onboarding (no prompts)
+  |-- copies koose/SOUL.md into workspace
+  |-- starts gateway with WebChat
+  v
+http://localhost:3000  (ready to chat)
+```
+
+## Koose's personality
+
+The file `koose/SOUL.md` defines how Koose talks. You can edit it anytime:
+
+```markdown
+You are Koose, a sharp and friendly AI assistant created by Koose, an EIT at MEST Africa.
+You speak clearly, with a warm and slightly witty tone.
+When summarizing, you are concise but never leave out the important parts.
+```
+
+The startup script copies this into the OpenClaw workspace automatically.
+
+---
 
 ## Exception handling
 
-OpenClaw (and therefore Koose) handles exceptions gracefully:
+Koose handles errors gracefully -- no crashes, just clear messages:
 
-- **Invalid URLs** -- if a user pastes a broken or unreachable link, Koose responds with a clear error message instead of crashing.
-- **Corrupt/unreadable PDFs** -- if a PDF cannot be parsed, Koose tells the user and suggests re-uploading.
-- **API failures** -- if the AI model provider (Anthropic/OpenAI) is down or rate-limited, OpenClaw retries automatically and falls back gracefully.
-- **Session errors** -- if a session is corrupted, the user can reset with `/new` or `/reset`.
-- **Network issues** -- channel disconnects (WhatsApp, Telegram) are retried with backoff.
+- **Bad URLs** -- tells the user the link is unreachable
+- **Corrupt PDFs** -- tells the user and suggests re-uploading
+- **API failures** -- retries automatically with backoff
+- **Session errors** -- user can reset with `/new`
+- **Network issues** -- channel disconnects are retried
 
 ## Logging
 
-OpenClaw provides structured logging out of the box:
+- **Verbose mode** is enabled by default in `koose/start.sh`
+- **Log levels:** errors, warnings, info, debug -- all captured to stdout
+- **Production:** `flyctl logs` to view live logs on Fly.io
+- **Chat commands:** `/status` (session info), `/usage full` (token usage)
 
-- **Start with verbose mode:** `pnpm openclaw gateway run --verbose`
-- **Log levels:** errors, warnings, info, and debug are all captured.
-- **Where logs go:** stdout by default. In production (fly.io), logs are accessible via `flyctl logs`.
-- **Chat commands for monitoring:**
-  - `/status` -- see the current session model, token count, and cost
-  - `/usage full` -- see per-response usage stats
+---
 
-## Deploying to fly.io
+## Deploying to Fly.io
 
-### 1. Install flyctl
+The Dockerfile and fly.toml are already configured. Deploy in 3 commands:
+
+### 1. Install Fly CLI and log in
 
 ```bash
 curl -L https://fly.io/install.sh | sh
-```
-
-### 2. Log in to fly.io
-
-```bash
 flyctl auth login
 ```
 
-### 3. Create the fly app (from the project root)
+### 2. Set your API key as a secret
+
+```bash
+flyctl secrets set ANTHROPIC_API_KEY=sk-ant-your-key-here
+```
+
+### 3. Deploy
 
 ```bash
 flyctl launch --name koose-ai
-```
-
-### 4. Set secrets (your API key)
-
-```bash
-flyctl secrets set ANTHROPIC_API_KEY=your-api-key-here
-```
-
-### 5. Create a Dockerfile (if not present)
-
-A basic `Dockerfile` for Koose:
-
-```dockerfile
-FROM node:22-slim
-RUN npm install -g pnpm
-WORKDIR /app
-COPY . .
-RUN pnpm install --frozen-lockfile
-RUN pnpm ui:build
-RUN pnpm build
-EXPOSE 18789
-CMD ["node", "dist/cli.js", "gateway", "run", "--port", "18789", "--bind", "all", "--verbose"]
-```
-
-### 6. Deploy
-
-```bash
 flyctl deploy
 ```
 
-### 7. Check it is running
+Koose is now live at **https://koose-ai.fly.dev**
+
+No Dockerfile changes needed. No wizard. The startup script reads the API key from Fly secrets and starts everything automatically.
+
+### Check deployment
 
 ```bash
-flyctl status
-flyctl logs
+flyctl status     # is it running?
+flyctl logs       # what's happening?
 ```
-
-Your Koose instance will be live at `https://koose-ai.fly.dev`.
 
 ---
 
 ## Useful commands
 
-| Command                                 | What it does                   |
-| --------------------------------------- | ------------------------------ |
-| `pnpm openclaw gateway run --verbose`   | Start Koose locally            |
-| `pnpm openclaw onboard`                 | Re-run the setup wizard        |
-| `pnpm openclaw channels status --probe` | Check connected channels       |
-| `pnpm openclaw doctor`                  | Diagnose configuration issues  |
-| `flyctl logs`                           | View production logs on fly.io |
-| `flyctl status`                         | Check fly.io deployment status |
+| Command                              | What it does           |
+| ------------------------------------ | ---------------------- |
+| `source .env && bash koose/start.sh` | Start Koose locally    |
+| `pnpm openclaw doctor`               | Diagnose config issues |
+| `flyctl deploy`                      | Deploy to Fly.io       |
+| `flyctl logs`                        | View production logs   |
+| `flyctl secrets set KEY=value`       | Update secrets         |
 
-## Chat commands (inside any connected channel)
+## Chat commands
 
-| Command            | What it does                         |
-| ------------------ | ------------------------------------ |
-| `/status`          | Session status (model, tokens, cost) |
-| `/new` or `/reset` | Reset the conversation               |
-| `/compact`         | Compact/summarize session context    |
-| `/verbose on/off`  | Toggle verbose responses             |
-| `/usage full`      | Show per-response usage stats        |
+| Command       | What it does                       |
+| ------------- | ---------------------------------- |
+| `/status`     | Session info (model, tokens, cost) |
+| `/new`        | Start a fresh conversation         |
+| `/compact`    | Compress session context           |
+| `/usage full` | Per-response usage stats           |
 
 ---
 
 ## Links
 
+- **Anthropic API key:** https://console.anthropic.com
+- **Fly.io:** https://fly.io
 - **OpenClaw docs:** https://docs.openclaw.ai
 - **OpenClaw repo:** https://github.com/openclaw/openclaw
-- **fly.io docs:** https://fly.io/docs
-- **Anthropic API:** https://console.anthropic.com
